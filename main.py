@@ -34,22 +34,35 @@ class QuizBot:
 
         @self.bot.message_handler(content_types=['text'])
         def handle_answer(message):
+            print(message.text)
+            print(type(message.chat.id))
+            if message.text == 'все' and message.chat.id == 323993202:
+                cursor = self.db_conn.cursor()
+                cursor.execute("DELETE FROM public.user;")
+                cursor.execute("DELETE FROM public.wrong_list;")
+                cursor.execute("DELETE FROM public.now;")
+                cursor.execute("DELETE FROM public.user_question;")
+                self.db_conn.commit()
+                print('Я тут')
+                self.bot.send_message(message.chat.id, 'Я все удалил!')
+                return
             chat_id = message.chat.id
             if not self.is_user_exists(chat_id):
                 self.bot.send_message(chat_id, 'Нажмите /start, чтобы начать')
                 return
-            now = self.get_current_question()
+            now = self.get_current_question(chat_id)
             if now:
                 quest_id, user_id = now[1], now[2]
                 quest = self.get_question_by_id(quest_id)
+                print(message.chat.first_name + ' ответил: ', message.text)
                 answer = message.text.replace(' ', '').lower()
                 if answer == quest['answer'].replace(' ', ''):
                     self.bot.send_message(chat_id, 'Отлично, это правильный ответ! 🔥')
                 else:
                     self.bot.send_message(chat_id, 'К сожалению, ответ неверный. Стоит ещё раз повторить эту тему, так как этот вопрос придёт тебе завтра! ⏰')
                     add_wrong_question(quest_id, user_id)  # Добавляем вопрос в wrong_list
-                self.delete_current_question()
-                self.get_question()
+                self.delete_current_question(chat_id)
+                self.get_question(chat_id)
 
         def add_wrong_question(quest_id, user_id):
             """Добавляет вопрос с неправильным ответом в таблицу wrong_list.
@@ -99,16 +112,13 @@ class QuizBot:
             print(f"Ошибка при добавлении пользователя: {e}")
             return False
 
-    def get_question(self):
-        now = self.get_current_question()
-        cursor = self.db_conn.cursor()
-        cursor.execute('SELECT tg_id FROM public.user')
-        user_id = cursor.fetchone()[0]
+    def get_question(self, tg_id):
+        now = self.get_current_question(tg_id)
         if now:
             quest_id = now[1]
             quest = self.get_question_by_id(quest_id)
         else:
-            self.bot.send_message(user_id, 'На сегодня вопросов больше нет.')
+            self.bot.send_message(tg_id, 'На сегодня вопросов больше нет.')
             return
 
         # Перемешиваем варианты ответов
@@ -118,16 +128,16 @@ class QuizBot:
         # for option in options:
         #     markup.add(option)
         # self.bot.send_message(user_id, quest['question'], reply_markup=markup)
-        self.bot.send_message(user_id, quest['question'])
+        self.bot.send_message(tg_id, quest['question'])
 
-    def get_current_question(self):
+    def get_current_question(self, tg_id):
         """Получает текущий вопрос из базы данных.
 
         Returns:
             tuple: Кортеж с информацией о текущем вопросе.
         """
         cursor = self.db_conn.cursor()
-        cursor.execute("SELECT * FROM public.now LIMIT 1")
+        cursor.execute(f"SELECT * FROM public.now WHERE user_id = {tg_id} LIMIT 1")
         return cursor.fetchone()
 
     def get_question_by_id(self, quest_id):
@@ -157,9 +167,9 @@ class QuizBot:
         self.db_conn.commit()
 
 
-    def delete_current_question(self):
+    def delete_current_question(self, tg_id):
         """Удаляет текущий вопрос из таблицы 'now'."""
-        now = self.get_current_question()
+        now = self.get_current_question(tg_id)
         if now:
             quest_id, user_id = now[1], now[2]
             cursor = self.db_conn.cursor()
@@ -187,7 +197,6 @@ class QuizBot:
             cursor.execute("UPDATE public.user_question SET status = 'YES' " \
                            "WHERE user_id = %s AND quest_id IN (SELECT quest_id FROM public.now WHERE user_id = %s);",
                            (user_id, user_id))
-            self.bot.send_message(user_id[0], 'Вопрос дня! 💯')
             self.db_conn.commit()
 
 
@@ -205,7 +214,28 @@ class QuizBot:
         cursor.execute("DELETE FROM public.wrong_list;")
         self.db_conn.commit()
         # После сброса вопросов, присылаем новые вопросы пользователю
-        self.get_question()
+        self.send_first_question_to_users()
+
+    def send_first_question_to_users(self):
+        """Рассылает первый вопрос из таблицы 'now' каждому пользователю из таблицы 'user'."""
+        cursor = self.db_conn.cursor()
+        cursor.execute("SELECT tg_id FROM public.user")
+        users = cursor.fetchall()
+        print(users)
+        for tg_id in users:
+            tg_id = tg_id[0]
+            # Получите первый вопрос из таблицы 'now' для текущего пользователя
+            cursor.execute("SELECT quest_id FROM public.now WHERE user_id = %s LIMIT 1;", (tg_id,))
+            question_id = cursor.fetchone()
+
+            if question_id:
+                # Получите текст вопроса по его идентификатору
+                cursor.execute("SELECT question FROM public.question WHERE id = %s;", (question_id,))
+                question_text = cursor.fetchone()[0]
+                if question_text:
+                    # Отправьте вопрос пользователю
+                    self.bot.send_message(tg_id, 'Вопросы дня! 💯')
+                    self.bot.send_message(tg_id, question_text['question'])
 
     def add_new_user_questions(self, user_id):
         """Добавляет вопросы из таблицы 'question' в таблицу 'user_question' для нового пользователя.
@@ -241,7 +271,7 @@ class QuizBot:
 
     def schedule_reset_questions(self):
         # Расписание: выполнение check_and_reset_questions каждый день в 16:01
-        schedule.every().day.at("13:55").do(self.reset_questions)
+        schedule.every().day.at("16:58").do(self.reset_questions)
 
     def start_scheduled_tasks(self):
         while True:
