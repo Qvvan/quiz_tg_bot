@@ -1,10 +1,9 @@
 import telebot
 import psycopg2
-from telebot import types
-import random
 import schedule
 import time
 import threading
+import datetime
 
 class QuizBot:
     def __init__(self, token, db_params):
@@ -16,12 +15,24 @@ class QuizBot:
             db_params (dict): Параметры подключения к базе данных PostgreSQL.
         """
         self.bot = telebot.TeleBot(token)
-        self.db_conn = psycopg2.connect(**db_params)
+        self.db_params = db_params
+        self.db_conn = None
+
+    def connect_to_db(self):
+        """Устанавливает соединение с базой данных."""
+        self.db_conn = psycopg2.connect(**self.db_params)
+
+    def close_db_connection(self):
+        """Закрывает соединение с базой данных."""
+        if self.db_conn is not None:
+            self.db_conn.close()
+            self.db_conn = None
 
     def start(self):
         """Запускает бота и устанавливает обработчики сообщений."""
         @self.bot.message_handler(commands=['start'])
         def handle_start(message):
+            self.connect_to_db()
             name = message.chat.first_name
             chat_id = message.chat.id
             if self.is_user_exists(chat_id):
@@ -31,11 +42,12 @@ class QuizBot:
                     self.bot.send_message(chat_id, f'Вы успешно зарегистрировались, {name}!\nПосле 18:00 вам придут первые 3 вопроса!')
                 else:
                     self.bot.send_message(chat_id, 'Что-то пошло не так, попробуйте позже')
+            self.close_db_connection()
 
         @self.bot.message_handler(content_types=['text'])
         def handle_answer(message):
-            print(message.text)
-            print(type(message.chat.id))
+            self.connect_to_db()
+            chat_id = message.chat.id
             if message.text == 'все' and message.chat.id == 323993202:
                 cursor = self.db_conn.cursor()
                 cursor.execute("DELETE FROM public.user;")
@@ -43,11 +55,11 @@ class QuizBot:
                 cursor.execute("DELETE FROM public.now;")
                 cursor.execute("DELETE FROM public.user_question;")
                 self.db_conn.commit()
-                print('Я тут')
                 self.bot.send_message(message.chat.id, 'Я все удалил!')
                 return
-            chat_id = message.chat.id
-            if not self.is_user_exists(chat_id):
+            elif message.text == 'обновить' and message.chat.id == 323993202:
+                self.bot.send_message(323993202, self.process_message())
+            elif not self.is_user_exists(chat_id):
                 self.bot.send_message(chat_id, 'Нажмите /start, чтобы начать')
                 return
             now = self.get_current_question(chat_id)
@@ -61,8 +73,10 @@ class QuizBot:
                 else:
                     self.bot.send_message(chat_id, 'К сожалению, ответ неверный. Стоит ещё раз повторить эту тему, так как этот вопрос придёт тебе завтра! ⏰')
                     add_wrong_question(quest_id, user_id)  # Добавляем вопрос в wrong_list
+                self.bot.send_message(323993202, f"На вопрос\n {quest['question']}\n{message.chat.first_name} ответил: {message.text}")
                 self.delete_current_question(chat_id)
                 self.get_question(chat_id)
+            self.close_db_connection()
 
         def add_wrong_question(quest_id, user_id):
             """Добавляет вопрос с неправильным ответом в таблицу wrong_list.
@@ -75,8 +89,32 @@ class QuizBot:
             cursor.execute(
                 f"INSERT INTO public.wrong_list(quest_id, user_id, status) VALUES ({quest_id}, {user_id}, 'YES');")
             self.db_conn.commit()
+        try:
+            self.bot.polling(none_stop = True, interval = 0)
+        except:
+            self.bot.send_message(323993202, 'Бот вылетел')
+            quiz_bot.start()
 
-        self.bot.polling(none_stop = True, interval = 0)
+    def process_message(self):
+        cursor = self.db_conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO public.user_question (user_id, quest_id, status)
+                SELECT CAST(u.tg_id AS BIGINT), q.id, 'NO'
+                FROM public.user AS u
+                CROSS JOIN (
+                    SELECT q.id 
+                    FROM public.question AS q
+                    LEFT JOIN public.user_question AS uq ON q.id = uq.quest_id
+                    WHERE uq.quest_id IS NULL
+                ) q;
+            """)
+            self.db_conn.commit()
+            return "Таблица обновлена!"
+        except Exception as e:
+            return f"Ошибка при обновлении таблицы: {e}"
+        finally:
+            cursor.close()
 
 
     def is_user_exists(self, chat_id):
@@ -93,6 +131,7 @@ class QuizBot:
         count = cursor.fetchone()[0]
         return count > 0
 
+
     def add_user(self, chat_id, name):
         """Добавляет пользователя в таблицу 'user'.
 
@@ -103,14 +142,16 @@ class QuizBot:
         Returns:
             bool: True, если пользователь успешно добавлен, иначе False.
         """
-        cursor = self.db_conn.cursor()
         try:
+            cursor = self.db_conn.cursor()
             cursor.execute(f"INSERT INTO public.user(name, tg_id) VALUES ('{name}', '{chat_id}');")
             self.db_conn.commit()
+            self.bot.send_message(323993202,f'Зарегистрирован: {chat_id}')
             return True
         except Exception as e:
-            print(f"Ошибка при добавлении пользователя: {e}")
-            return False
+            self.bot.send_message(323993202,f"Ошибка работы с базой данных: {e}")
+            self.db_conn.rollback()
+
 
     def get_question(self, tg_id):
         now = self.get_current_question(tg_id)
@@ -154,19 +195,6 @@ class QuizBot:
         return cursor.fetchone()[0]
 
 
-
-    def insert_current_question(self, quest_id, user_id):
-        """Вставляет текущий вопрос в таблицу 'now'.
-
-        Args:
-            quest_id (int): Идентификатор вопроса.
-            user_id (int): Идентификатор пользователя.
-        """
-        cursor = self.db_conn.cursor()
-        cursor.execute(f"INSERT INTO public.now(quest_id, user_id) VALUES ({quest_id}, {user_id});")
-        self.db_conn.commit()
-
-
     def delete_current_question(self, tg_id):
         """Удаляет текущий вопрос из таблицы 'now'."""
         now = self.get_current_question(tg_id)
@@ -201,6 +229,7 @@ class QuizBot:
 
 
     def reset_questions(self):
+        self.connect_to_db()
         cursor = self.db_conn.cursor()
         # Переносим все текущие вопросы в таблицу wrong_list со статусом 'NO'
         cursor.execute("INSERT INTO public.wrong_list SELECT * FROM public.now;")
@@ -215,13 +244,13 @@ class QuizBot:
         self.db_conn.commit()
         # После сброса вопросов, присылаем новые вопросы пользователю
         self.send_first_question_to_users()
+        self.close_db_connection()
 
     def send_first_question_to_users(self):
         """Рассылает первый вопрос из таблицы 'now' каждому пользователю из таблицы 'user'."""
         cursor = self.db_conn.cursor()
         cursor.execute("SELECT tg_id FROM public.user")
         users = cursor.fetchall()
-        print(users)
         for tg_id in users:
             tg_id = tg_id[0]
             # Получите первый вопрос из таблицы 'now' для текущего пользователя
@@ -246,12 +275,12 @@ class QuizBot:
         Returns:
             bool: True, если вопросы успешно добавлены, иначе False.
         """
+        self.connect_to_db()
         cursor = self.db_conn.cursor()
         try:
             # Выбираем все вопросы из таблицы 'question'
             cursor.execute("SELECT id FROM public.question;")
             questions = cursor.fetchall()
-
             # Проверяем, какие из этих вопросов уже есть в таблице 'user_question' для нового пользователя
             for question_id in questions:
                 cursor.execute(
@@ -266,17 +295,37 @@ class QuizBot:
 
             return True
         except Exception as e:
-            print(f"Ошибка при добавлении вопросов для нового пользователя: {e}")
+            self.bot.send_message(323993202, f"Ошибка при добавлении вопросов для нового пользователя: {e}")
+            self.db_conn.rollback()
             return False
 
+    def reminder(self):
+        self.connect_to_db()
+        cursor = self.db_conn.cursor()
+        cursor.execute("SELECT DISTINCT user_id FROM now;")
+        users = cursor.fetchall()
+        for tg_id in users:
+            self.bot.send_message(tg_id[0], 'Время поджимает!⏰\nОтветьте на оставшиеся вопросы до 18:00, чтобы не упустить ни одного')
+        self.close_db_connection()
+
+
     def schedule_reset_questions(self):
-        # Расписание: выполнение check_and_reset_questions каждый день в 16:01
-        schedule.every().day.at("16:58").do(self.reset_questions)
+        schedule.every().day.at("17:00").do(self.reminder)
+        schedule.every().day.at("18:00").do(self.reset_questions)
 
     def start_scheduled_tasks(self):
         while True:
-            schedule.run_pending()
-            time.sleep(1)
+            # Получаем текущую дату и проверяем, не является ли она субботой или воскресеньем
+            current_date = datetime.datetime.now()
+            if current_date.weekday() not in [5, 6]:
+                schedule.run_pending()
+                time.sleep(1)
+            else:
+                # Подождать до следующего дня, если сегодня выходной
+                # Спим до полуночи (00:00) и потом проверяем расписание снова
+                next_day = current_date + datetime.timedelta(days=1)
+                until_midnight = datetime.datetime(next_day.year, next_day.month, next_day.day, 0, 0) - current_date
+                time.sleep(until_midnight.total_seconds())
 
 
 if __name__ == "__main__":
