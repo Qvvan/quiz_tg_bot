@@ -1,4 +1,0 @@
-telebot
-psycopg2
-requests
-schedule

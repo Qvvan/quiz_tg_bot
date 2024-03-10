@@ -1,10 +1,14 @@
-import telebot
 import threading
+
+import telebot
+from telebot import types
 
 from database_handler import DatabaseHandler
 from question_manager import QuestionManager
 from quiz_scheduler import QuizScheduler
 from user_manager import UserManager
+
+print('Начало наботы')
 
 
 class TelegramBotHandler:
@@ -15,6 +19,21 @@ class TelegramBotHandler:
         self.user_manager = UserManager(self.db_handler, self.bot)
         self.question_manager = QuestionManager(self.db_handler, self.bot)
         self.quiz_scheduler = QuizScheduler(self.bot, self.user_manager, self.question_manager)
+
+    def get_keyboard_students(self):
+        keyboard = types.InlineKeyboardMarkup()
+        cursor = self.db_handler.execute_query('SELECT name,tg_id FROM public.user')
+        tg_ids = cursor.fetchall()
+        for name, tg_id in tg_ids:
+            keyboard.add(types.InlineKeyboardButton(text=name, callback_data=tg_id))
+        keyboard.add(types.InlineKeyboardButton(text='Назад', callback_data='back'))
+        return keyboard
+
+    def get_menu_keyboard(self):
+        keyboard = types.InlineKeyboardMarkup()
+        keyboard.add(types.InlineKeyboardButton(text='Удалить', callback_data='delete'))
+        keyboard.add(types.InlineKeyboardButton(text='Скрыть', callback_data='hide'))
+        return keyboard
 
     def connect_to_db(self):
         """Установка соединения с базой данных."""
@@ -42,6 +61,26 @@ class TelegramBotHandler:
                     self.bot.send_message(tg_id, 'Что-то пошло не так, попробуйте позже')
             self.close_db_connection()
 
+        @self.bot.callback_query_handler(func=lambda call: True)
+        def callback_query(call):
+
+            if call.data == 'hide':
+                self.bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.id)
+            elif call.data == 'delete':
+                self.bot.edit_message_text(chat_id=call.message.chat.id,
+                                           message_id=call.message.id,
+                                           text='Ваши ученики',
+                                           reply_markup=self.get_keyboard_students())
+            elif call.data == 'back':
+                self.bot.edit_message_text(chat_id=call.message.chat.id,
+                                           message_id=call.message.id,
+                                           text='Что хотим?',
+                                           reply_markup=self.get_menu_keyboard())
+            else:
+                self.user_manager.delete_user(call.data)
+                self.bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.id,
+                                                   reply_markup=self.get_keyboard_students())
+
         @self.bot.message_handler(content_types=['text'])
         def handle_answer(message):
             self.connect_to_db()
@@ -55,8 +94,8 @@ class TelegramBotHandler:
                 self.bot.send_message(323993202, self.question_manager.process_message())
                 return
 
-            elif message.text.replace(' ', '').split('-')[0] == 'удали' and message.chat.id == 323993202:
-                self.user_manager.delete_user(message.text.replace(' ', '').split('-')[1])
+            elif message.text.replace(' ', '').lower() == 'ученики' and message.chat.id == 323993202:
+                self.bot.send_message(323993202, text='Что хотим?', reply_markup=self.get_menu_keyboard())
                 return
 
             elif not self.user_manager.is_user_exists(tg_id):
@@ -93,9 +132,6 @@ class TelegramBotHandler:
 
 
 if __name__ == "__main__":
-
-    print('Начало наботы')
-
     token = '5278804872:AAGh40DpEzAUs1FcjJJ8oCQTWm7LJ5qkFXQ'
     db_params = {
         "database": "tg_db",
