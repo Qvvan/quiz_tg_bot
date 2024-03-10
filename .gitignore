@@ -7,3 +7,4 @@ __pycache__/question_manager.cpython-312.pyc
 .idea/quiz_tg_bot.iml
 __pycache__/user_manager.cpython-312.pyc
 *.xml
+.env

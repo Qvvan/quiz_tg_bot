@@ -8,6 +8,9 @@ from question_manager import QuestionManager
 from quiz_scheduler import QuizScheduler
 from user_manager import UserManager
 
+from dotenv import load_dotenv
+import os
+
 print('Начало наботы')
 
 
@@ -132,13 +135,14 @@ class TelegramBotHandler:
 
 
 if __name__ == "__main__":
-    token = '5278804872:AAGh40DpEzAUs1FcjJJ8oCQTWm7LJ5qkFXQ'
+    load_dotenv()
+    token = os.environ.get('API_TOKEN')
     db_params = {
-        "database": "tg_db",
-        "user": "postgres",
-        "password": "123",
-        "host": "localhost",
-        "port": '5432'
+        "database": os.environ.get('DB_NAME'),
+        "user": os.environ.get('DB_USER'),
+        "password": os.environ.get('DB_PASSWORD'),
+        "host": os.environ.get('DB_HOST'),
+        "port": os.environ.get('DB_PORT')
     }
     quiz_bot = TelegramBotHandler(token, db_params)
     quiz_bot.quiz_scheduler.schedule_reset_questions()
