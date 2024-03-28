@@ -22,11 +22,11 @@ class QuizScheduler:
         weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
 
         for day in weekdays:
-            remind = f"schedule.every().{day}.at('17:00').do(self.question_manager.reminder)"
+            remind = f"schedule.every().{day}.at('14:00').do(self.question_manager.reminder)"
             exec(remind)
 
         for day in weekdays:
-            quest = f"schedule.every().{day}.at('18:00').do(self.question_manager.reset_questions)"
+            quest = f"schedule.every().{day}.at('15:00').do(self.question_manager.reset_questions)"
             exec(quest)
 
     def start_scheduled_tasks(self):

@@ -1,17 +1,14 @@
+import os
 import threading
 
 import telebot
+from dotenv import load_dotenv
 from telebot import types
 
-from database_handler import DatabaseHandler
+from database.database_handler import DatabaseHandler
 from question_manager import QuestionManager
 from quiz_scheduler import QuizScheduler
 from user_manager import UserManager
-
-from dotenv import load_dotenv
-import os
-
-print('Начало наботы')
 
 
 class TelegramBotHandler:
@@ -127,7 +124,6 @@ class TelegramBotHandler:
             self.bot.polling(none_stop=True, interval=0)
         except Exception as e:
             self.bot.send_message(323993202, f'Бот вылетел\nОшибка: {e}')
-            self.start()
 
     def start_scheduled_tasks(self):
         """Запуск планировщика задач в отдельном потоке."""
@@ -135,7 +131,17 @@ class TelegramBotHandler:
 
 
 if __name__ == "__main__":
-    load_dotenv()
+    print('Бот запущен!')
+
+    APP_MODE = 'dev'
+
+    if APP_MODE == 'dev':
+        dotenv_path = '../config/.env.dev'
+    else:
+        dotenv_path = '../config/.env.prod'
+
+    load_dotenv(dotenv_path)
+
     token = os.environ.get('API_TOKEN')
     db_params = {
         "database": os.environ.get('DB_NAME'),
@@ -150,5 +156,10 @@ if __name__ == "__main__":
     # Запускаем планировщик в отдельном потоке
     scheduler_thread = threading.Thread(target=quiz_bot.start_scheduled_tasks)
     scheduler_thread.start()
-
-    quiz_bot.start()
+    while True:
+        try:
+            quiz_bot.start()
+        except Exception as e:
+            print('Ошибка: ', e)
+            print('Бот перезапускается...')
+            continue

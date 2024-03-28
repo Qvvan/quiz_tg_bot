@@ -1,5 +1,8 @@
+import datetime
+import os
 import random
 
+from dotenv import load_dotenv
 from telebot import types
 
 
@@ -128,7 +131,6 @@ class QuestionManager:
                     self.bot.send_message(tg_id, quest + s,
                                           reply_markup=markup if wrong else types.ReplyKeyboardRemove())
 
-
     def reminder(self):
         """Отправка напоминания пользователям об оставшихся вопросах."""
         self.db_handler.connect()
@@ -138,7 +140,29 @@ class QuestionManager:
         for tg_id in users:
             self.bot.send_message(tg_id[0],
                                   'Время поджимает!⏰\nОтветьте на оставшиеся вопросы до 18:00, чтобы не упустить ни одного')
+        self.create_database_dump()
         self.db_handler.close_connection()
+
+    def create_database_dump(self):
+        """Создание дампа базы данных"""
+
+        load_dotenv('../../config/.env.prod')
+        database = os.environ.get('DB_NAME')
+        user = os.environ.get('DB_USER')
+        password = os.environ.get('DB_PASSWORD')
+        host = os.environ.get('DB_HOST')
+        port = os.environ.get('DB_PORT')
+        # Формируем имя файла для дампа с текущей датой
+        current_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        dump_file = f"{database}_dump_{current_datetime}.sql"
+
+        # Устанавливаем переменную среды PGPASSWORD
+        os.environ['PGPASSWORD'] = password
+        try:
+            os.system(
+                f"pg_dump -h {host} -p {port} -U {user} -d {database} -f {dump_file}")
+        except Exception as e:
+            self.bot.send_message(323993202, text=f'Ошибка при создании дампа базы данных: {e}')
 
     def reset_questions(self):
         """Сброс текущих вопросов и добавление новых."""

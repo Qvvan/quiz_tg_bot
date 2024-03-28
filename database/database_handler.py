@@ -1,3 +1,5 @@
+import sys
+
 import psycopg2
 
 
@@ -7,8 +9,12 @@ class DatabaseHandler:
         self.db_conn = None
 
     def connect(self):
-        """Установка соединения с базой данных."""
-        self.db_conn = psycopg2.connect(**self.db_params)
+        try:
+            """Установка соединения с базой данных."""
+            self.db_conn = psycopg2.connect(**self.db_params)
+        except psycopg2.Error as e:
+            print("Ошибка при подключении к базе данных:", e)
+            sys.exit(1)
 
     def close_connection(self):
         """Закрытие соединения с базой данных."""
