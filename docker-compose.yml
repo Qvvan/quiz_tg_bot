@@ -1,17 +1,30 @@
 version: '3.8'
 
 services:
-  postgres-db:
+  postgres-db-dev:
     image: postgres:latest
-    container_name: postgres
+    container_name: postgres-dev
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+      POSTGRES_DB: postgres_dev
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - ./tg_bot_09_03.backup:/docker-entrypoint-initdb.d/tg_bot.backup
+      - ./database/base_dev/tg_bot_for_dev_28_03_2024.backup:/docker-entrypoint-initdb.d/tg_dev.backup
+
+  postgres-db-prod:
+    image: postgres:latest
+    container_name: postgres-prod
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres_prod
+    ports:
+      - "5432:5432"  # Используем другой порт для второй базы данных
+    volumes:
+      - ./database/base_prod/tg_bot_for_prod_28_03_2024.backup:/docker-entrypoint-initdb.d/tg_prod.backup
+
     
   tg_bot:
     build:
@@ -19,5 +32,6 @@ services:
     volumes:
       - .:/app
     depends_on:
-      - postgres-db
+      - postgres-db-dev
+      - postgres-db-prod
     command: python main.py
