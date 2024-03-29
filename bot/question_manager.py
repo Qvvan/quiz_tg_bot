@@ -140,7 +140,6 @@ class QuestionManager:
         for tg_id in users:
             self.bot.send_message(tg_id[0],
                                   'Время поджимает!⏰\nОтветьте на оставшиеся вопросы до 18:00, чтобы не упустить ни одного')
-        self.create_database_dump()
         self.db_handler.close_connection()
 
     def create_database_dump(self):
@@ -155,8 +154,8 @@ class QuestionManager:
         host = os.environ.get('DB_HOST')
         port = os.environ.get('DB_PORT')
         # Формируем имя файла для дампа с текущей датой
-        current_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        dump_file = f"../database/dumps/{database}_dump_{current_datetime}.sql"
+        current_datetime = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+        dump_file = f"../database/dumps/tg_dump_{current_datetime}.sql"
 
         # Устанавливаем переменную среды PGPASSWORD
         os.environ['PGPASSWORD'] = password
