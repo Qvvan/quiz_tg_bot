@@ -133,7 +133,7 @@ class TelegramBotHandler:
 if __name__ == "__main__":
     os.system('echo Бот запущен!')
 
-    APP_MODE = 'dev'
+    APP_MODE = 'prod'
 
     if APP_MODE == 'prod':
         dotenv_path = '../config/.env.prod'
