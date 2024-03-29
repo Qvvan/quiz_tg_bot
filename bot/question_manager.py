@@ -146,6 +146,8 @@ class QuestionManager:
     def create_database_dump(self):
         """Создание дампа базы данных"""
 
+        os.system('echo Создание dump запущено')
+
         load_dotenv('../../config/.env.prod')
         database = os.environ.get('DB_NAME')
         user = os.environ.get('DB_USER')
@@ -154,7 +156,7 @@ class QuestionManager:
         port = os.environ.get('DB_PORT')
         # Формируем имя файла для дампа с текущей датой
         current_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        dump_file = f"{database}_dump_{current_datetime}.sql"
+        dump_file = f"../database/dumps/{database}_dump_{current_datetime}.sql"
 
         # Устанавливаем переменную среды PGPASSWORD
         os.environ['PGPASSWORD'] = password

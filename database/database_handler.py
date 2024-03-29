@@ -4,9 +4,10 @@ import psycopg2
 
 
 class DatabaseHandler:
-    def __init__(self, db_params):
+    def __init__(self, db_params, bot):
         self.db_params = db_params
         self.db_conn = None
+        self.bot = bot
 
     def connect(self):
         try:
@@ -14,6 +15,7 @@ class DatabaseHandler:
             self.db_conn = psycopg2.connect(**self.db_params)
         except psycopg2.Error as e:
             print("Ошибка при подключении к базе данных:", e)
+            self.bot.send_message(323993202, text=f'Ошибка при подключении к базе данных: {e}')
             sys.exit(1)
 
     def close_connection(self):

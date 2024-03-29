@@ -15,7 +15,7 @@ class TelegramBotHandler:
     def __init__(self, token, db_params):
         telebot.apihelper.SESSION_TIME_TO_LIVE = 60 * 5
         self.bot = telebot.TeleBot(token)
-        self.db_handler = DatabaseHandler(db_params)
+        self.db_handler = DatabaseHandler(db_params, self.bot)
         self.user_manager = UserManager(self.db_handler, self.bot)
         self.question_manager = QuestionManager(self.db_handler, self.bot)
         self.quiz_scheduler = QuizScheduler(self.bot, self.user_manager, self.question_manager)
@@ -131,14 +131,14 @@ class TelegramBotHandler:
 
 
 if __name__ == "__main__":
-    print('Бот запущен!')
+    os.system('echo Бот запущен!')
 
     APP_MODE = 'dev'
 
-    if APP_MODE == 'dev':
-        dotenv_path = '../config/.env.dev'
-    else:
+    if APP_MODE == 'prod':
         dotenv_path = '../config/.env.prod'
+    else:
+        dotenv_path = '../config/.env.dev'
 
     load_dotenv(dotenv_path)
 

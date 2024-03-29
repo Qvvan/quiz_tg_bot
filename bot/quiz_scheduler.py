@@ -1,3 +1,5 @@
+import os
+
 import schedule
 import time
 
@@ -20,13 +22,13 @@ class QuizScheduler:
     def schedule_reset_questions(self):
         """Запланировать сброс вопросов по расписанию."""
         weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-
+        os.system('echo Рассылка запущена')
         for day in weekdays:
-            remind = f"schedule.every().{day}.at('14:00').do(self.question_manager.reminder)"
+            remind = f"schedule.every().{day}.at('15:12').do(self.question_manager.reminder)"
             exec(remind)
 
         for day in weekdays:
-            quest = f"schedule.every().{day}.at('15:00').do(self.question_manager.reset_questions)"
+            quest = f"schedule.every().{day}.at('15:11').do(self.question_manager.reset_questions)"
             exec(quest)
 
     def start_scheduled_tasks(self):
