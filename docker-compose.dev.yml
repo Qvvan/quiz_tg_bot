@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  postgres-db-dev:
+    image: postgres:16.2
+    container_name: postgres-db-dev
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres_dev
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./database/tg_dev_29_03_2024.sql:/docker-entrypoint-initdb.d/tg_dev.sql
+
+  tg_bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres-db-dev
+    env_file:
+      - ./config/.env.dev
+    command: python main.py

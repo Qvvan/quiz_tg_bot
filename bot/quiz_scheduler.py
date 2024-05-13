@@ -1,7 +1,6 @@
-import os
+import time
 
 import schedule
-import time
 
 
 class QuizScheduler:

@@ -2,10 +2,9 @@ import os
 import threading
 
 import telebot
-from dotenv import load_dotenv
 from telebot import types
 
-from database.database_handler import DatabaseHandler
+from database_handler import DatabaseHandler
 from question_manager import QuestionManager
 from quiz_scheduler import QuizScheduler
 from user_manager import UserManager
@@ -121,7 +120,7 @@ class TelegramBotHandler:
             self.close_db_connection()
 
         try:
-            self.bot.polling(none_stop=True, interval=0)
+            self.bot.infinity_polling(timeout=10, long_polling_timeout=5)
         except Exception as e:
             self.bot.send_message(323993202, f'Бот вылетел\nОшибка: {e}')
 
@@ -132,15 +131,6 @@ class TelegramBotHandler:
 
 if __name__ == "__main__":
     os.system('echo Бот запущен!')
-
-    APP_MODE = 'prod'
-
-    if APP_MODE == 'prod':
-        dotenv_path = '../config/.env.prod'
-    else:
-        dotenv_path = '../config/.env.dev'
-
-    load_dotenv(dotenv_path)
 
     token = os.environ.get('API_TOKEN')
     db_params = {
