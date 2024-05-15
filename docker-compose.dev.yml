@@ -2,15 +2,13 @@ version: '3.8'
 
 services:
   postgres-db-dev:
-    image: postgres:16.2
+    image: "postgres:${POSTGRES_VERSION}"
     container_name: postgres-db-dev
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres_dev
-    ports:
-      - "5434:5432"
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - ./database/tg_dev_29_03_2024.sql:/docker-entrypoint-initdb.d/tg_dev.sql
 

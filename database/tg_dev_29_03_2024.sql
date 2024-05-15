@@ -26,7 +26,7 @@ SET row_security = off;
 -- *not* creating schema, since initdb creates it
 
 
-ALTER SCHEMA public OWNER TO postgres;
+ALTER SCHEMA public OWNER TO tg_quiz_bot;
 
 SET default_tablespace = '';
 
@@ -43,7 +43,7 @@ CREATE TABLE public.now (
 );
 
 
-ALTER TABLE public.now OWNER TO postgres;
+ALTER TABLE public.now OWNER TO tg_quiz_bot;
 
 --
 -- TOC entry 216 (class 1259 OID 33491)
@@ -59,7 +59,7 @@ CREATE TABLE public.question (
 );
 
 
-ALTER TABLE public.question OWNER TO postgres;
+ALTER TABLE public.question OWNER TO tg_quiz_bot;
 
 --
 -- TOC entry 217 (class 1259 OID 33496)
@@ -75,7 +75,7 @@ CREATE SEQUENCE public.question_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.question_id_seq OWNER TO postgres;
+ALTER SEQUENCE public.question_id_seq OWNER TO tg_quiz_bot;
 
 --
 -- TOC entry 4813 (class 0 OID 0)
@@ -97,7 +97,7 @@ CREATE TABLE public."user" (
 );
 
 
-ALTER TABLE public."user" OWNER TO postgres;
+ALTER TABLE public."user" OWNER TO tg_quiz_bot;
 
 --
 -- TOC entry 219 (class 1259 OID 33502)
@@ -111,7 +111,7 @@ CREATE TABLE public.user_question (
 );
 
 
-ALTER TABLE public.user_question OWNER TO postgres;
+ALTER TABLE public.user_question OWNER TO tg_quiz_bot;
 
 --
 -- TOC entry 220 (class 1259 OID 33508)
@@ -124,7 +124,7 @@ CREATE TABLE public.wrong_list (
 );
 
 
-ALTER TABLE public.wrong_list OWNER TO postgres;
+ALTER TABLE public.wrong_list OWNER TO tg_quiz_bot;
 
 --
 -- TOC entry 4650 (class 2604 OID 33511)

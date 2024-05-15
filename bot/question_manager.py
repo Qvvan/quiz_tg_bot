@@ -147,7 +147,7 @@ class QuestionManager:
 
         os.system('echo Создание dump запущено')
 
-        load_dotenv('../../config/.env.prod')
+        load_dotenv('../../config/.env.dev.prod')
         database = os.environ.get('DB_NAME')
         user = os.environ.get('DB_USER')
         password = os.environ.get('DB_PASSWORD')
